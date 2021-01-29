@@ -1,0 +1,246 @@
+---
+title: "Zonal mean sections"
+author: "Jens Daniel Müller and Donghe Zhu"
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  workflowr::wflow_html:
+    number_sections: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+editor_options:
+  chunk_output_type: console
+---
+
+```{r parent, child = "/nfs/kryo/work/jenmueller/emlr_cant/utilities/setup.Rmd"}
+# this chunk runs the code stored in setup.Rmd
+# if required, please refer to instructions given here:
+# https://jdblischak.github.io/workflowr/articles/wflow-07-common-code.html
+```
+
+```{r read_params_local, include = FALSE}
+params_local <-
+  read_rds(here::here("data/auxillary",
+                       "params_local.rds"))
+
+```
+
+```{r define_paths, include = FALSE}
+
+path_model <-
+  paste(path_root, "/model/", sep = "")
+
+path_preprocessing    <-
+  paste(path_model, "preprocessing/", sep = "")
+
+path_version_data     <-
+  paste(path_model,
+        params_local$Version_ID,
+        "/data/",
+        sep = "")
+
+path_version_figures  <-
+  paste(path_model,
+        params_local$Version_ID,
+        "/figures/",
+        sep = "")
+```
+
+
+```{r load_libraries_specific, include = FALSE}
+library(scales)
+library(marelac)
+library(gt)
+```
+
+# Data sources
+
+Following Cant zonal mean sections are used:
+
+## This study
+
+Results from this study are referred to as JDM.
+
+```{r read_JDM_cant_zonal_file}
+
+cant_zonal_JDM <-
+  read_csv(paste(path_version_data,
+                 "cant_zonal.csv",
+                 sep = ""))
+
+cant_zonal_JDM <- cant_zonal_JDM %>%
+  select(lat,
+         depth,
+         eras,
+         basin_AIP,
+         gamma_mean,
+         cant_mean,
+         cant_pos_mean,
+         cant_sd,
+         cant_pos_sd)
+
+```
+
+## Model Cant
+
+"True" Cant fields directly inferred from the model output are referred to as M.
+
+```{r read_model_cant_zonal_file}
+
+cant_zonal_M <-
+  read_csv(paste(path_version_data,
+                  "cant_zonal_M", sep = ""))
+
+```
+
+```{r assign_gamma_from_JDM_to_model_cant_zonal}
+
+cant_zonal_JDM_gamma <- cant_zonal_JDM %>%
+  select(lat, depth, eras, basin_AIP, gamma_mean)
+
+cant_zonal_M <- left_join(cant_zonal_JDM_gamma, cant_zonal_M)
+
+rm(cant_zonal_JDM_gamma)
+
+```
+
+## Join data sets
+
+Zonal sections are merged, and differences calculate per grid cell and per eras.
+
+```{r join_M_and_JDM_zonal_sections}
+
+# add estimate label
+cant_zonal_long <- bind_rows(cant_zonal_JDM %>%  mutate(estimate = "JDM"),
+                             cant_zonal_M %>%  mutate(estimate = "M"))
+
+# pivot to wide format
+cant_zonal_wide <- cant_zonal_long %>%
+  pivot_wider(names_from = estimate, values_from = cant_mean:cant_pos_sd) %>%
+  drop_na()
+
+# calculate offset
+cant_zonal_wide <- cant_zonal_wide %>%
+  mutate(
+    cant_pos_mean_offset = cant_pos_mean_JDM - cant_pos_mean_M,
+    cant_mean_offset = cant_mean_JDM - cant_mean_M,
+    estimate = "JDM - M"
+  )
+
+```
+
+
+# Zonal mean sections
+
+## Cant - positive only
+
+In a first series of plots we explore the distribution of Cant, taking only positive estimates into account (positive here refers to the mean cant estimate across MLR model predictions available for each grid cell). Negative values were set to zero before calculating mean sections.
+
+```{r cant_pos_zonal_mean_section, fig.asp=0.6}
+
+for (i_eras in unique(cant_zonal_long$eras)) {
+  for (i_basin_AIP in unique(cant_zonal_long$basin_AIP)) {
+    for (i_estimate in unique(cant_zonal_long$estimate)) {
+      # Absolute values
+      print(
+        p_section_zonal(
+          df = cant_zonal_long %>%
+            filter(
+              basin_AIP == i_basin_AIP,
+              estimate == i_estimate,
+              eras == i_eras
+            ),
+          var = "cant_pos_mean",
+          subtitle_text =
+            paste(
+              "Basin:",
+              i_basin_AIP,
+              "| estimate:",
+              i_estimate,
+              " | eras:",
+              i_eras
+            )
+        )
+      )
+      
+    }
+    
+    # Offset
+    print(
+      p_section_zonal(
+        df = cant_zonal_wide %>%
+          filter(basin_AIP == i_basin_AIP,
+                 eras == i_eras),
+        var = "cant_pos_mean_offset",
+        breaks = params_global$breaks_cant_offset,
+        col = "divergent",
+        title_text = "Zonal mean section - offset",
+        subtitle_text =
+          paste("Basin:", i_basin_AIP, "| estimate: JDM-M | eras:", i_eras)
+      )
+    )
+  }
+}
+
+```
+
+## Cant - all
+
+In a second series of plots we explore the distribution of all Cant, taking positive and negative estimates into account.
+
+
+```{r cant_zonal_mean_section, fig.asp=0.6}
+
+for (i_eras in unique(cant_zonal_long$eras)) {
+  for (i_basin_AIP in unique(cant_zonal_long$basin_AIP)) {
+    for (i_estimate in unique(cant_zonal_long$estimate)) {
+      # Absolute values
+      print(
+        p_section_zonal(
+          df = cant_zonal_long %>%
+            filter(
+              basin_AIP == i_basin_AIP,
+              estimate == i_estimate,
+              eras == i_eras
+            ),
+          var = "cant_mean",
+          col = "divergent",
+          breaks = params_global$breaks_cant,
+          legend_title = expression(atop(Delta * C[ant],
+                                         (mu * mol ~ kg ^ {
+                                           -1
+                                         }))),
+          subtitle_text =
+            paste(
+              "Basin:",
+              i_basin_AIP,
+              "| estimate:",
+              i_estimate,
+              " | eras:",
+              i_eras
+            )
+        )
+        
+      )
+      
+    }
+    
+    # Offset
+    print(
+      p_section_zonal(
+        df = cant_zonal_wide %>%
+          filter(basin_AIP == i_basin_AIP,
+                 eras == i_eras),
+        var = "cant_mean_offset",
+        col = "divergent",
+        breaks = params_global$breaks_cant_offset,
+        title_text = "Zonal mean section - offset",
+        subtitle_text =
+          paste("Basin:", i_basin_AIP, "| estimate: JDM - M | eras:", i_eras)
+      )
+      
+    )
+  }
+}
+
+```

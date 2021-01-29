@@ -1,0 +1,235 @@
+---
+title: "Global sections"
+author: "Jens Daniel Müller and Donghe Zhu"
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  workflowr::wflow_html:
+    number_sections: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+editor_options:
+  chunk_output_type: console
+---
+
+```{r parent, child = "/nfs/kryo/work/jenmueller/emlr_cant/utilities/setup.Rmd"}
+# this chunk runs the code stored in setup.Rmd
+# if required, please refer to instructions given here:
+# https://jdblischak.github.io/workflowr/articles/wflow-07-common-code.html
+```
+
+```{r read_params_local, include = FALSE}
+params_local <-
+  read_rds(here::here("data/auxillary",
+                       "params_local.rds"))
+
+```
+
+```{r define_paths, include = FALSE}
+
+path_model <-
+  paste(path_root, "/model/", sep = "")
+
+path_preprocessing    <-
+  paste(path_model, "preprocessing/", sep = "")
+
+path_version_data     <-
+  paste(path_model,
+        params_local$Version_ID,
+        "/data/",
+        sep = "")
+
+path_version_figures  <-
+  paste(path_model,
+        params_local$Version_ID,
+        "/figures/",
+        sep = "")
+```
+
+
+```{r load_libraries_specific, include = FALSE}
+library(scales)
+library(marelac)
+library(gt)
+```
+
+# Data sources
+
+Following Cant mean values per grid cell are used:
+
+## This study
+
+Results from this study are referred to as JDM.
+
+```{r read_JDM_cant_file}
+
+cant_JDM <-
+  read_csv(paste(path_version_data,
+                 "cant_3d.csv",
+                 sep = ""))
+
+cant_sd <- cant_JDM %>%
+  select(lon, 
+         lat,
+         depth,
+         basin,
+         basin_AIP,
+         eras,
+         cant_sd,
+         cant_pos_sd,
+         gamma,
+         gamma_slab)
+
+cant_JDM <- cant_JDM %>%
+  select(lon, 
+         lat,
+         depth,
+         basin_AIP,
+         eras,
+         cant,
+         cant_pos)
+
+```
+
+## Model Cant
+
+"True" Cant fields directly inferred from the model output are referred to as M.
+
+```{r read_model_cant_file}
+
+cant_M <-
+  read_csv(paste(path_version_data,
+                  "cant_M.csv", sep = ""))
+
+cant_M <- cant_M %>%
+  select(lon, 
+         lat,
+         depth,
+         basin_AIP,
+         eras,
+         cant,
+         cant_pos)
+
+```
+
+## Join data sets
+
+Cant fields are merged, and differences calculate per grid cell and per eras.
+
+```{r join_M_and_JDM_zonal_sections}
+
+# add estimate label
+cant_long <- bind_rows(cant_JDM %>%  mutate(estimate = "JDM"),
+                             cant_M %>%  mutate(estimate = "M"))
+
+# pivot to wide format
+cant_wide <- cant_long %>%
+  pivot_wider(names_from = estimate, values_from = cant:cant_pos) %>%
+  drop_na()
+
+# calculate offset
+cant_wide <- cant_wide %>%
+  mutate(
+    cant_pos_offset = cant_pos_JDM - cant_pos_M,
+    cant_offset = cant_JDM - cant_M,
+    estimate = "JDM - M"
+  )
+
+# join with SD deviation of Cant across all (currently 10) MLR models for each grid cell
+cant_wide <- left_join(cant_wide, cant_sd)
+
+```
+
+
+# Global sections
+
+## Cant - positive only
+
+```{r cant_pos_global_section, fig.asp=0.6}
+
+for (i_eras in unique(cant_long$eras)) {
+  for (i_estimate in unique(cant_long$estimate)) {
+   # i_eras = "1982-1999 --> 2000-2012"
+   # i_estimate = "JDM"
+    print(
+      p_section_global(
+        df = cant_long %>% filter(estimate == i_estimate, eras == i_eras),
+        var = "cant_pos",
+        subtitle_text = paste("Estimate:", i_estimate, " | Eras:", i_eras)
+      )
+    )
+    
+  }
+  print(
+    p_section_global(
+      df = cant_wide %>% filter(eras == i_eras),
+      var = "cant_pos_offset",
+      col = "divergent",
+      subtitle_text = paste("Estimate: JDM - M | Eras:", i_eras)
+    )
+  )
+}
+
+```
+
+## Cant - all
+
+```{r cant_all_global_section, fig.asp=0.6}
+
+for (i_eras in unique(cant_long$eras)) {
+  for (i_estimate in unique(cant_long$estimate)) {
+    print(
+      p_section_global(
+        df = cant_long %>% filter(estimate == i_estimate, eras == i_eras),
+        var = "cant",
+        col = "divergent",
+        subtitle_text = paste("Estimate:", i_estimate, " | Eras:", i_eras)
+      )
+    )
+    
+  }
+  print(
+    p_section_global(
+      df = cant_wide %>% filter(eras == i_eras),
+      var = "cant_offset",
+      col = "divergent",
+      subtitle_text = paste("Estimate: JDM - M | Eras:", i_eras)
+    )
+  )
+}
+
+```
+
+
+# Model quality check
+
+## Cant - positive only
+
+```{r cant_pos_model_quality_check}
+
+cant_wide %>%
+  ggplot(aes(cant_pos_sd, cant_pos_offset)) +
+  geom_bin2d(binwidth = 5) +
+  scale_fill_viridis_c(option = "magma",
+                       direction = -1,
+                       trans = "log10") +
+  facet_grid(eras ~ basin_AIP) +
+  labs(title = "The offset vs sd of positive Cant across models")
+
+```
+
+## Cant - all
+
+```{r cant_model_quality_check}
+
+cant_wide %>%
+  ggplot(aes(cant_sd, cant_offset)) +
+  geom_bin2d(binwidth = 5) +
+  scale_fill_viridis_c(option = "magma",
+                       direction = -1,
+                       trans = "log10") +
+  facet_grid(eras ~ basin_AIP) +
+  labs(title = "The offset vs sd of Cant across models")
+
+```
+

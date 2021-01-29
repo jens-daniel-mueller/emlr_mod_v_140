@@ -1,0 +1,61 @@
+name: Cant_eMLR
+output_dir: ../docs
+navbar:
+  title: eMLR mod v_XXX
+  left:
+  - text: Config
+    menu:
+    - text: Dependencies
+      href: config_dependencies.html
+    - text: Parameterization
+      href: config_parameterization_local.html
+  - text: eMLR
+    menu:
+    - text: GLODAP subsetting
+      href: eMLR_GLODAPv2_2020_subsetting.html
+    - text: Data preparation
+      href: eMLR_data_preparation.html
+    - text: Assumption testing
+      href: eMLR_assumption_testing.html
+    - text: Model fitting
+      href: eMLR_model_fitting.html
+  - text: Mapping
+    menu:
+    - text: Predictor preparation
+      href: mapping_predictor_preparation.html
+    - text: Cant calculation
+      href: mapping_cant.html
+    - text: Target variable calculation
+      href: mapping_target_variable.html
+    - text: Model Cant calculation
+      href: mapping_model_cant.html
+  - text: Analysis
+    menu:
+    - text: Cant budgets
+      href: analysis_cant_budgets.html
+    - text: Inventory maps
+      href: analysis_inventory_maps.html
+    - text: Zonal mean sections
+      href: analysis_zonal_mean_sections.html
+    - text: Global sections
+      href: analysis_global_section.html
+    - text: Isoneutral slab distribution
+      href: analysis_isoneutral_slab_distribution.html
+    - text: Others
+      href: analysis_others.html
+  right:
+  - icon: fa-github
+    text: Source code
+    href: https://github.com/jens-daniel-mueller/emlr_mod_v_XXX
+  - icon: fa-home
+    text: Jens' homepage
+    href: https://jens-daniel-mueller.github.io/
+output:
+  workflowr::wflow_html:
+    toc: yes
+    toc_float:
+      collapsed: false
+    toc_depth: 3
+    theme: flatly
+    code_folding: hide
+    highlight: textmate
