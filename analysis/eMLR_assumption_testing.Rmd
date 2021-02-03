@@ -122,74 +122,76 @@ if (params_local$plot_all_figures == "y") {
 for (i_basin in unique(GLODAP$basin)) {
   for (i_era in unique(GLODAP$era)) {
     # i_basin <- unique(GLODAP$basin)[1]
-    # i_era   <- unique(GLODAP$era)[1]
+    # i_era   <- unique(GLODAP$era)[3]
 
     GLODAP_basin_era <- GLODAP %>%
       filter(basin == i_basin,
              era == i_era)
     
     for (i_gamma_slab in unique(GLODAP_basin_era$gamma_slab)) {
-      # i_gamma_slab <- unique(GLODAP_basin_era$gamma_slab)[5]
-
-      GLODAP_highlight <- GLODAP_basin_era %>%
-        mutate(gamma_highlight = if_else(gamma_slab == i_gamma_slab,
-                                         "in", "out")) %>%
-        arrange(desc(gamma_highlight))
+      #i_gamma_slab <- unique(GLODAP_basin_era$gamma_slab)[14]
       
-      p <- GLODAP_highlight %>%
-        ggpairs(
-          columns = c(params_local$MLR_target,
-                      params_local$MLR_predictors),
-          ggplot2::aes(
-            col = gamma_highlight,
-            fill = gamma_highlight,
-            alpha = 0.01
+      if (i_basin != "SO" && i_gamma_slab != "(-Inf,26]") {
+        GLODAP_highlight <- GLODAP_basin_era %>%
+          mutate(gamma_highlight = if_else(gamma_slab == i_gamma_slab,
+                                           "in", "out")) %>%
+          arrange(desc(gamma_highlight))
+        
+        p <- GLODAP_highlight %>%
+          ggpairs(
+            columns = c(params_local$MLR_target,
+                        params_local$MLR_predictors),
+            ggplot2::aes(
+              col = gamma_highlight,
+              fill = gamma_highlight,
+              alpha = 0.01
+            )
+          ) +
+          scale_fill_manual(values = c("red", "grey")) +
+          scale_color_manual(values = c("red", "grey")) +
+          labs(
+            title = paste(
+              i_era,
+              "|",
+              i_basin,
+              "| Gamma slab",
+              i_gamma_slab,
+              "| # obs total",
+              nrow(GLODAP_basin_era),
+              "| # obs slab",
+              nrow(GLODAP_highlight %>%
+                     filter(gamma_highlight == "in"))
+            )
           )
-        ) +
-        scale_fill_manual(values = c("red", "grey")) +
-        scale_color_manual(values = c("red", "grey")) +
-        labs(
-          title = paste(
-            i_era,
-            "|",
-            i_basin,
-            "| Gamma slab",
-            i_gamma_slab,
-            "| # obs total",
-            nrow(GLODAP_basin_era),
-            "| # obs slab",
-            nrow(GLODAP_highlight %>%
-                   filter(gamma_highlight == "in"))
-          )
-        )
-      
-      png(
-        filename = paste(
-          path_version_figures,
-          "Observations_correlation/",
-          paste(
-            "Predictor_correlation",
-            i_era,
-            i_basin,
-            i_gamma_slab,
-            ".png",
-            sep = "_"
+        
+        png(
+          filename = paste(
+            path_version_figures,
+            "Observations_correlation/",
+            paste(
+              "Predictor_correlation",
+              i_era,
+              i_basin,
+              i_gamma_slab,
+              ".png",
+              sep = "_"
+            ),
+            sep = ""
           ),
-          sep = ""),
-        width = 12,
-        height = 12,
-        units = "in",
-        res = 300
-      )
-      
-      print(p)
-      
-      dev.off()
-      
+          width = 12,
+          height = 12,
+          units = "in",
+          res = 300
+        )
+        
+        print(p)
+        
+        dev.off()
+      }
     }
   }
 }
-
+  
 }
 
 ```
